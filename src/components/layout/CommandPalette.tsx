@@ -37,19 +37,7 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
-  // 全局 Ctrl/Cmd+K 开关
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setPaletteOpen(!useUIStore.getState().paletteOpen);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [setPaletteOpen]);
-
-  // 打开时重置输入并聚焦
+  // 打开时重置输入并聚焦（Ctrl+K 的全局注册在 GlobalKeybindings，集中管理）
   useEffect(() => {
     if (open) {
       setFilterText('');

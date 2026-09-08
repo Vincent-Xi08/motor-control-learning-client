@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useMemo, useRef } from 'react';
+import { lazy, Suspense, useMemo, useRef } from 'react';
 import { ModuleRenderer } from '../../modules/ModuleRenderer';
 import { useI18n } from '../../i18n/useI18n';
 import { localizeModuleMeta, moduleMetas } from '../../simulation/engine/presets';
@@ -9,8 +9,15 @@ import { useUIStore } from '../../store/uiStore';
 import { GuidedExperimentBar } from './GuidedExperimentBar';
 import { ModuleSectionNav } from './ModuleSectionNav';
 import { moduleSwap } from '../../utils/motion';
-import { CurriculumPanel } from '../curriculum/CurriculumPanel';
-import { InsightsView } from '../insights/InsightsView';
+
+// 课程主线 / 学习洞察都是非首屏视图（点图标栏才进入），
+// 懒加载把各自的内容数据（curriculum 30k+ / insights 相关）移出主包
+const CurriculumPanel = lazy(() =>
+  import('../curriculum/CurriculumPanel').then((m) => ({ default: m.CurriculumPanel })),
+);
+const InsightsView = lazy(() =>
+  import('../insights/InsightsView').then((m) => ({ default: m.InsightsView })),
+);
 
 const ASSEMBLY_MODULE_META: ModuleMeta = {
   id: 'assembly-workshop',
@@ -48,7 +55,9 @@ export function SimulationPanel() {
         className="scrollbar-thin min-h-0 space-y-4 overflow-auto rounded-2xl border border-line-subtle bg-bg-surface p-4"
         aria-label={t('shell.simViewCurriculumAria')}
       >
-        <CurriculumPanel onLeaveCurriculum={() => setSimPanelView('module')} />
+        <Suspense fallback={<ViewSkeleton label={t('shell.curriculumEntry')} />}>
+          <CurriculumPanel onLeaveCurriculum={() => setSimPanelView('module')} />
+        </Suspense>
       </section>
     );
   }
@@ -58,7 +67,9 @@ export function SimulationPanel() {
         className="scrollbar-thin min-h-0 space-y-4 overflow-auto rounded-2xl border border-line-subtle bg-bg-surface p-4"
         aria-label={t('shell.simViewInsightsAria')}
       >
-        <InsightsView />
+        <Suspense fallback={<ViewSkeleton label={t('insights.title')} />}>
+          <InsightsView />
+        </Suspense>
       </section>
     );
   }
@@ -99,5 +110,14 @@ export function SimulationPanel() {
         <ModuleRenderer moduleId={activeModule} />
       </motion.div>
     </section>
+  );
+}
+
+/** 视图懒加载骨架：与面板容器同款边框 + 居中脉冲文案 */
+function ViewSkeleton({ label }: { label: string }) {
+  return (
+    <div className="flex min-h-[240px] items-center justify-center rounded-xl border border-line-subtle bg-bg-base">
+      <p className="animate-pulse text-caption text-ink-muted">{label}</p>
+    </div>
   );
 }

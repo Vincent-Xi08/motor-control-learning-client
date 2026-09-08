@@ -1,7 +1,34 @@
 import type { ModuleId } from '../simulation/engine/types';
 import type { Locale } from '../i18n/types';
 import { useI18nStore } from '../store/i18nStore';
-import { lessonsEn } from './lessonsEn';
+
+/**
+ * 英文讲义惰性注册表。
+ *
+ * lessonsEn.ts 约 157 kB 源码（压缩后 ~120 kB），若静态 import 会被打进
+ * 首屏主包——中文用户永远用不到，英文用户也只是讲义区用。改为：
+ *   - 本模块内维护可变注册表，getLesson / getFallbackLanguage 同步读取
+ *     （数据未到达时回退中文，语义安全）；
+ *   - `ensureLessonsEn()` 动态 import 填充并返回 Promise（幂等）；
+ *   - UI 层在 locale 切到 en-US 时调用并等待重渲染（见 ConceptNotes）。
+ * 这样 lessonsEn 进入独立 chunk，只被真正需要的人下载。
+ */
+let lessonsEn: Partial<Record<ModuleId, LessonContent>> = {};
+let lessonsEnPromise: Promise<void> | null = null;
+
+export function ensureLessonsEn(): Promise<void> {
+  if (!lessonsEnPromise) {
+    lessonsEnPromise = import('./lessonsEn').then((m) => {
+      lessonsEn = m.lessonsEn;
+    });
+  }
+  return lessonsEnPromise;
+}
+
+/** 该模块是否存在英文讲义（ensureLessonsEn 完成后才是准确值）。 */
+export function hasEnLesson(id: ModuleId): boolean {
+  return Boolean(lessonsEn[id]);
+}
 
 export interface LessonContent {
   id: ModuleId;

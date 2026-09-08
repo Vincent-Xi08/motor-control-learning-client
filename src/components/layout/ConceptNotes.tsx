@@ -1,7 +1,6 @@
 import { ChevronDown, Lightbulb, BookOpen, Cpu, Target, MessageCircleQuestion } from 'lucide-react';
-import { useState } from 'react';
-import { getLesson } from '../../content/lessons';
-import { lessonsEn } from '../../content/lessonsEn';
+import { useEffect, useState } from 'react';
+import { ensureLessonsEn, getLesson, hasEnLesson as hasEnLessonEntry } from '../../content/lessons';
 import type { ModuleId } from '../../simulation/engine/types';
 import { useI18n } from '../../i18n/useI18n';
 import type { TKey } from '../../i18n/useI18n';
@@ -24,9 +23,19 @@ const TIER_DEFS: Array<{ key: Tier; labelKey: TKey; icon: typeof Lightbulb }> = 
 
 export function ConceptNotes({ moduleId }: Props) {
   const { t, locale } = useI18n();
+  // EN 讲义是惰性 chunk：切到 en-US 时异步填充，完成后 bump 重渲
+  const [, bump] = useState(0);
+  useEffect(() => {
+    if (locale !== 'en-US') return;
+    let cancelled = false;
+    void ensureLessonsEn().then(() => {
+      if (!cancelled) bump((v) => v + 1);
+    });
+    return () => { cancelled = true; };
+  }, [locale]);
   const lesson = getLesson(moduleId, locale);
   // Only show "translation pending" when EN is active AND there is no EN lesson entry.
-  const hasEnLesson = !!lessonsEn[moduleId];
+  const hasEnLesson = hasEnLessonEntry(moduleId);
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tier>('intro');
   const tiers = TIER_DEFS.filter((tier) => {

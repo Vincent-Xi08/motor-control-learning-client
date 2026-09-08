@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell } from './components/layout/AppShell';
 import { GlobalKeybindings } from './components/layout/GlobalKeybindings';
-import { AssistantPanel } from './components/assistant/AssistantPanel';
 import { FloatingChatButton } from './components/assistant/FloatingChatButton';
 import { UpdateBanner } from './components/desktop/UpdateBanner';
 import { ReceiveSnapshotModal } from './components/share/ReceiveSnapshotModal';
+// 助手面板（含 RAG 索引 / LLM provider 链）非首屏：首次打开聊天时才加载
+const AssistantPanel = lazy(() =>
+  import('./components/assistant/AssistantPanel').then((m) => ({ default: m.AssistantPanel })),
+);
 import {
   isDesktopRuntime,
   subscribeMenu,
@@ -15,6 +18,7 @@ import {
 } from './utils/desktopBridge';
 import { decodeSnapshot, type AppStateInput, type DecodedSnapshot } from './utils/snapshotCodec';
 import { getCurrentLocale, translate, useI18n } from './i18n/useI18n';
+import { useAssistantStore } from './store/assistantStore';
 import { useSimulationStore } from './store/simulationStore';
 import { useUIStore } from './store/uiStore';
 import { useThemeStore } from './store/themeStore';
@@ -319,7 +323,20 @@ export default function App() {
       <GlobalKeybindings />
       <ReceiveSnapshotModal open={open} decoded={pending} onApply={onApply} onClose={onClose} />
       <FloatingChatButton />
-      <AssistantPanel />
+      <AssistantLazy />
     </>
+  );
+}
+
+/** 助手面板懒加载壳：首次打开聊天后才 import（RAG 索引链很重），此后常驻。 */
+function AssistantLazy() {
+  const open = useAssistantStore((s) => s.open);
+  const [mounted, setMounted] = useState(false);
+  if (open && !mounted) setMounted(true);
+  if (!mounted) return null;
+  return (
+    <Suspense fallback={null}>
+      <AssistantPanel />
+    </Suspense>
   );
 }

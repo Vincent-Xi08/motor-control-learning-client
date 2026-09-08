@@ -7,6 +7,7 @@ import { useAssistantStore } from '../../store/assistantStore';
 import { useProgressStore } from '../../store/progressStore';
 import { useSimulationStore } from '../../store/simulationStore';
 import { useThemeStore } from '../../store/themeStore';
+import { useUIStore } from '../../store/uiStore';
 import { useKeyboardShortcuts, type Shortcut } from '../../utils/useKeyboardShortcuts';
 import { KeyHelpOverlay } from './KeyHelpOverlay';
 
@@ -68,6 +69,17 @@ export function GlobalKeybindings() {
     };
 
     const list: Shortcut[] = [
+      // —— 导航 ——
+      {
+        key: 'k',
+        category: '导航',
+        description: t('shell.railPaletteAria'),
+        meta: ['ctrl'],
+        handler: (e) => {
+          e.preventDefault();
+          useUIStore.getState().setPaletteOpen(!useUIStore.getState().paletteOpen);
+        },
+      },
       // —— 运行控制 ——
       // 注意：category 是中文字面量联合类型，由 KeyHelpOverlay 的 CATEGORY_I18N
       // 映射到 shell.keyHelpCat* 翻译；description 直接进 KeyHelpOverlay 渲染，用 t()。
