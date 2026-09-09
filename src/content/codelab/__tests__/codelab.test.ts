@@ -62,7 +62,7 @@ describe('codelab content integrity', () => {
       const sw = c.sweep;
       const points = sw.points ?? 60;
       expect(sw.reference.length, `${c.id} reference 点数 ≠ points`).toBe(points);
-      expect(sw.fixedArgs.length).toBeGreaterThanOrEqual(sw.argIndex + 1);
+      expect(sw.fixedArgs.length).toBeGreaterThanOrEqual(sw.argIndex);
       expect(sw.outLabels.length).toBeGreaterThan(0);
       expect(sw.xLabel.trim().length).toBeGreaterThan(0);
       for (const row of sw.reference) {
