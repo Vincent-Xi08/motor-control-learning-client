@@ -1,9 +1,31 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import { readdirSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+
+/**
+ * 发布裁剪：删除 dist/assets/generated/*.png。
+ * AssetHero 用 <picture> 优先加载同目录 webp（0.68 MB），png（13.7 MB）
+ * 只是老浏览器回退——2026 年 Chromium/Firefox/Safari 全支持 webp，
+ * 没必要让它们进安装包和 Pages。源文件 public/ 保留（资产生成管线用）。
+ */
+function trimPngFallbacks(): Plugin {
+  return {
+    name: 'trim-png-fallbacks',
+    closeBundle() {
+      const dir = join(process.cwd(), 'dist', 'assets', 'generated');
+      try {
+        for (const f of readdirSync(dir)) {
+          if (f.endsWith('.png')) rmSync(join(dir, f));
+        }
+      } catch { /* 目录不存在时忽略 */ }
+    },
+  };
+}
 
 export default defineConfig({
   base: './',
-  plugins: [react()],
+  plugins: [react(), trimPngFallbacks()],
   build: {
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
