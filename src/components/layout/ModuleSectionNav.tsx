@@ -90,11 +90,15 @@ export function ModuleSectionNav({
     };
 
     const raf = requestAnimationFrame(spy);
+    // 双源监听：桌面端模块 section 自身滚动；移动端（<xl 布局高度未约束）
+    // section 撑开到内容高度、由 window 滚动——只听 section 会漏，spy 冻结
     root.addEventListener('scroll', spy, { passive: true });
+    window.addEventListener('scroll', spy, { passive: true });
     window.addEventListener('resize', spy);
     return () => {
       cancelAnimationFrame(raf);
       root.removeEventListener('scroll', spy);
+      window.removeEventListener('scroll', spy);
       window.removeEventListener('resize', spy);
     };
   }, [anchors, scrollContainerRef]);
