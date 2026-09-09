@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { codeChallenges } from '../index';
 import { codeLabSolutions } from '../solutions';
-import { runChallenge } from '../../../simulation/codelab/runner';
+import { runChallenge, runSweep } from '../../../simulation/codelab/runner';
 
 const CJK_RE = /[一-鿿　-〿＀-￯]/;
 
@@ -53,6 +53,41 @@ describe('codelab content integrity', () => {
       expect(sol, `${c.id} 缺官方答案登记`).toBeTruthy();
       const r = runChallenge(c, sol);
       expect(r.ok, `${c.id} 官方答案未满分：${r.fatalError ?? JSON.stringify(r.results.filter((x) => !x.pass))}`).toBe(true);
+    }
+  });
+
+  it('扫描数据完备：reference 点数一致、数值有限、长度与 outLabels 匹配', () => {
+    for (const c of codeChallenges) {
+      if (!c.sweep) continue;
+      const sw = c.sweep;
+      const points = sw.points ?? 60;
+      expect(sw.reference.length, `${c.id} reference 点数 ≠ points`).toBe(points);
+      expect(sw.fixedArgs.length).toBeGreaterThanOrEqual(sw.argIndex + 1);
+      expect(sw.outLabels.length).toBeGreaterThan(0);
+      expect(sw.xLabel.trim().length).toBeGreaterThan(0);
+      for (const row of sw.reference) {
+        expect(row.length, `${c.id} 输出长度应与 outLabels 一致`).toBe(sw.outLabels.length);
+        for (const v of row) expect(Number.isFinite(v), `${c.id} 扫描点含非有限值`).toBe(true);
+      }
+    }
+  });
+
+  it('官方答案的扫描曲线与冻结 reference 逐点一致（容差 1e-3）', () => {
+    for (const c of codeChallenges) {
+      if (!c.sweep) continue;
+      const sol = codeLabSolutions[c.id];
+      const r = runSweep(c, sol, c.sweep);
+      expect(r.ok, `${c.id} 官方答案扫描失败：${r.error}`).toBe(true);
+      for (let i = 0; i < c.sweep.reference.length; i += 1) {
+        const got = r.curve[i];
+        const want = c.sweep.reference[i];
+        for (let k = 0; k < want.length; k += 1) {
+          expect(
+            Math.abs((got?.[k] ?? Number.NaN) - want[k]),
+            `${c.id} 第 ${i} 点输出 ${k} 偏差过大：got=${got?.[k]} want=${want[k]}`,
+          ).toBeLessThanOrEqual(1e-3);
+        }
+      }
     }
   });
 });

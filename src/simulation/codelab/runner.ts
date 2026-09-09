@@ -6,7 +6,7 @@
  * 由参考实现冻结的测试向量。
  */
 
-import type { CodeChallenge, CodeLabCase } from '../../content/codelab/types';
+import type { CodeChallenge, CodeLabCase, CodeLabSweep } from '../../content/codelab/types';
 import { compileUserProgram } from './interpreter';
 
 export interface CaseResult {
@@ -86,4 +86,42 @@ export function runChallenge(challenge: CodeChallenge, userCode: string): RunRes
 
   const passed = results.filter((x) => x.pass).length;
   return { ok: passed === results.length, passed, total: results.length, results };
+}
+
+export interface SweepResult {
+  ok: boolean;
+  /** 每个采样点的学员函数输出（外层 = 采样点） */
+  curve: number[][];
+  error?: string;
+}
+
+/**
+ * 输入扫描：编译一次学员代码，在 sweep 定义的采样点上逐点求值。
+ * 用于通关后的"你的曲线 vs 参考曲线"可视化（不判分——判分仍由
+ * runChallenge 的冻结用例负责；此处个别点异常只截断曲线并给出提示）。
+ */
+export function runSweep(challenge: CodeChallenge, userCode: string, sweep: CodeLabSweep): SweepResult {
+  const points = sweep.points ?? 60;
+  const n = Math.max(2, points);
+  let program: ReturnType<typeof compileUserProgram>;
+  try {
+    program = compileUserProgram(userCode);
+  } catch (err) {
+    return { ok: false, curve: [], error: err instanceof Error ? err.message : String(err) };
+  }
+  const curve: number[][] = [];
+  for (let i = 0; i < n; i += 1) {
+    const x = sweep.from + ((sweep.to - sweep.from) * i) / (n - 1);
+    const args = [...sweep.fixedArgs];
+    args[sweep.argIndex] = x;
+    const r = program.call(challenge.functionName, args, STEP_BUDGET);
+    if (!r.ok) return { ok: false, curve, error: `x=${x.toFixed(3)} 处出错：${r.error}` };
+    const v = r.value;
+    const row = typeof v === 'number' ? [v] : Array.isArray(v) && v.every((q) => typeof q === 'number') ? v : null;
+    if (row === null || row.some((q) => !Number.isFinite(q))) {
+      return { ok: false, curve, error: `x=${x.toFixed(3)} 处返回非有限数值` };
+    }
+    curve.push(row);
+  }
+  return { ok: true, curve };
 }

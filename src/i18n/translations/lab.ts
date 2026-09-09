@@ -152,4 +152,13 @@ export const lab = {
   codeLabShowSolution: e('看参考答案', 'View reference solution'),
   codeLabHideSolution: e('收起参考答案', 'Hide reference solution'),
   codeLabSolutionTitle: e('参考答案（TypeScript）', 'Reference solution (TypeScript)'),
+  // —— Code Lab 扫描可视化 ——
+  codeLabSweepTitle: e('你的曲线 vs 参考（输入扫描）', 'Your curve vs reference (input sweep)'),
+  codeLabSweepHint: e(
+    '虚线为参考实现，实线是你的函数在扫描区间上的逐点输出——重合即形状也对了。',
+    'Dashed = reference implementation; solid = your function evaluated point-by-point across the sweep. Overlapping curves mean the shape matches too.',
+  ),
+  codeLabSweepError: e('扫描中断：', 'Sweep aborted: '),
+  codeLabSweepYou: e('你的', 'yours'),
+  codeLabSweepRef: e('参考', 'ref'),
 };

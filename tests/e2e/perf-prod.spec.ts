@@ -22,7 +22,7 @@ const targets = [
 
 async function timeMount(page: Page, stage: string): Promise<number> {
   const start = await page.evaluate(() => performance.now());
-  await page.locator('nav button').filter({ hasText: `${stage} ·` }).click();
+  await page.locator('nav button').filter({ hasText: `${stage}` }).click();
   await expect(page.getByText('教学讲义').first()).toBeVisible({ timeout: 5000 });
   const end = await page.evaluate(() => performance.now());
   return end - start;
@@ -30,13 +30,13 @@ async function timeMount(page: Page, stage: string): Promise<number> {
 
 test('production build module mount latency', async ({ page }) => {
   await page.goto((PROD_BASE ?? 'http://127.0.0.1:4173') + '/');
-  await expect(page.locator('nav button').filter({ hasText: '01 ·' }).first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('nav button').filter({ hasText: '01' }).first()).toBeVisible({ timeout: 15_000 });
   await page.waitForTimeout(800);
 
   const results: Record<string, number> = {};
   for (const t of targets) {
     // 切到模块 08 (inverter) 作为对照模块，再切回来
-    await page.locator('nav button').filter({ hasText: `08 ·` }).click().catch(() => {});
+    await page.locator('nav button').filter({ hasText: `08` }).click().catch(() => {});
     await page.waitForTimeout(300);
     results[t.label] = await timeMount(page, t.stage);
   }

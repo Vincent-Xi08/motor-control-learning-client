@@ -45,6 +45,29 @@ export interface CodeChallenge {
   cReference: string;
   /** 难度 1-3 */
   difficulty: 1 | 2 | 3;
+  /**
+   * 输入扫描可视化（可选）：通关后把学员函数在扫描区间上逐点运行，
+   * 与冻结的参考曲线叠画——"数字对了"升级为"曲线对了"。
+   */
+  sweep?: CodeLabSweep;
+}
+
+/** 扫描定义：x 从 from 到 to 均匀取 points 个点，其余参数固定。 */
+export interface CodeLabSweep {
+  /** 扫描变量在第几个参数位（0 起） */
+  argIndex: number;
+  from: number;
+  to: number;
+  /** 采样点数（含端点），默认 60 */
+  points?: number;
+  /** 固定的其余参数（长度 = 函数签名参数数，扫描位会被覆盖） */
+  fixedArgs: number[];
+  /** 参考曲线：每个采样点的期望返回（数组的数组的数组，外层 = 采样点） */
+  reference: number[][];
+  /** x 轴标签（如 "θ (rad)"），纯符号不翻 */
+  xLabel: string;
+  /** 输出序列名（与函数返回数组对应，如 ["α", "β", "0"]） */
+  outLabels: string[];
 }
 
 /** 由内容目录聚合（codelab/index.ts 导出 challenges 数组）。 */

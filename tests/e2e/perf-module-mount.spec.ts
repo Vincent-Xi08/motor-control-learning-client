@@ -18,7 +18,7 @@ const targets = [
 async function timeModuleMount(page: Page, stage: string, title: string): Promise<number> {
   // 用 page.evaluate 起 performance.now() 锚点；点击后等"教学讲义"可见。
   const start = await page.evaluate(() => performance.now());
-  await page.locator('nav button').filter({ hasText: `${stage} ·` }).click();
+  await page.locator('nav button').filter({ hasText: `${stage}` }).click();
   await expect(page.getByRole('heading', { name: title }).first()).toBeVisible({ timeout: 5000 });
   await expect(page.getByText('教学讲义').first()).toBeVisible({ timeout: 5000 });
   const end = await page.evaluate(() => performance.now());
@@ -28,13 +28,13 @@ async function timeModuleMount(page: Page, stage: string, title: string): Promis
 test('module first-mount latency (production build via preview)', async ({ page }) => {
   await page.goto('/');
   // 等首屏稳定：sidebar 可见 + 首个模块 heading 渲染（任何 heading 即可）
-  await expect(page.locator('nav button').filter({ hasText: '01 ·' }).first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('nav button').filter({ hasText: '01' }).first()).toBeVisible({ timeout: 15_000 });
   await page.waitForTimeout(500);
 
   const results: Record<string, number> = {};
   for (const t of targets) {
     // 切到一个对照模块再切回来，避免缓存命中拉低数字
-    await page.locator('nav button').filter({ hasText: `08 ·` }).click().catch(() => {});
+    await page.locator('nav button').filter({ hasText: `08` }).click().catch(() => {});
     await page.waitForTimeout(200);
     results[t.label] = await timeModuleMount(page, t.stage, t.title);
   }

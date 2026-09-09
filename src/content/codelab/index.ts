@@ -1,4 +1,5 @@
 import type { CodeChallenge } from './types';
+import { codeLabSweeps } from './sweeps';
 import { clarkeChallenge } from './clarke';
 import { parkChallenge } from './park';
 import { inverseParkChallenge } from './inversePark';
@@ -34,7 +35,7 @@ export const codeChallenges: CodeChallenge[] = [
   vfRampChallenge,
   thdChallenge,
   copEerChallenge,
-];
+].map((c) => ({ ...c, sweep: codeLabSweeps[c.id] }));
 
 export function challengesForModule(moduleId: string): CodeChallenge[] {
   return codeChallenges.filter((c) => c.moduleId === moduleId);

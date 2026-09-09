@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
 import { CheckCircle2, XCircle, Lightbulb, Play, RotateCcw, KeyRound, Terminal } from 'lucide-react';
+import { CartesianGrid, Legend, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { Card } from '../ui/Card';
 import { CodeBlock } from '../layout/CodeBlock';
+import { SafeResponsiveContainer } from '../charts/SafeResponsiveContainer';
 import { useI18n } from '../../i18n/useI18n';
 import { usePersistentState } from '../../utils/usePersistentState';
-import { runChallenge, type RunResult } from '../../simulation/codelab/runner';
+import { runChallenge, runSweep, type RunResult, type SweepResult } from '../../simulation/codelab/runner';
 import { codeChallenges } from '../../content/codelab/index';
 import { codeLabSolutions } from '../../content/codelab/solutions';
 import { useSimulationStore } from '../../store/simulationStore';
@@ -51,13 +53,20 @@ function SingleChallenge({
   const [solved, setSolved] = usePersistentState(`codelab.solved.${challengeId}`, false);
   const [showSolution, setShowSolution] = useState(false);
   const [showCRef, setShowCRef] = useState(false);
+  const [sweep, setSweep] = useState<SweepResult | null>(null);
 
   if (!challenge) return null;
 
   const run = () => {
     const r = runChallenge(challenge, code);
     setResult(r);
-    if (r.ok) setSolved(true);
+    if (r.ok) {
+      setSolved(true);
+      // 通关即算曲线：把学员函数在扫描区间上逐点跑一遍（有 sweep 定义的题）
+      setSweep(challenge.sweep ? runSweep(challenge, code, challenge.sweep) : null);
+    } else {
+      setSweep(null);
+    }
   };
 
   const fmt = (v: number) => (Math.abs(v) >= 1000 ? v.toFixed(1) : v.toFixed(4));
@@ -181,6 +190,48 @@ function SingleChallenge({
         <p className="mt-2 text-caption text-accent-measure">🎉 {t('lab.codeLabCongrats')}</p>
       )}
 
+      {/* 通关后的扫描可视化：你的曲线（实线）vs 参考实现（虚线） */}
+      {result?.ok && challenge.sweep && sweep && (
+        <div className="mt-3 rounded-xl border border-line-subtle bg-bg-base p-2">
+          <p className="mb-1 text-caption font-medium text-ink-primary">{t('lab.codeLabSweepTitle')}</p>
+          {(() => {
+            const sw = challenge.sweep;
+            return sweep.ok ? (
+            <>
+              <div className="h-52">
+                <SafeResponsiveContainer>
+                  <LineChart
+                    data={sweepChart(sw, sweep.curve, t('lab.codeLabSweepYou'), t('lab.codeLabSweepRef'))}
+                    margin={{ top: 6, right: 14, bottom: 16, left: -4 }}
+                  >
+                    <CartesianGrid stroke="rgba(231,243,255,0.06)" strokeDasharray="3 6" />
+                    <XAxis
+                      dataKey="x" type="number" domain={['dataMin', 'dataMax']}
+                      tick={{ fill: '#9eb5cb', fontSize: 11 }}
+                      label={{ value: sw.xLabel, position: 'insideBottom', offset: -6, fill: '#9eb5cb', fontSize: 11 }}
+                    />
+                    <YAxis tick={{ fill: '#9eb5cb', fontSize: 11 }} domain={['auto', 'auto']} />
+                    <Tooltip
+                      contentStyle={{ background: '#0c1524', border: '1px solid #1b2740', borderRadius: 8, color: '#eaf3ff', fontSize: 11 }}
+                      labelFormatter={(v) => `${sw.xLabel} = ${Number(v).toFixed(3)}`}
+                      formatter={(v) => Number(v).toFixed(3)}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 10, color: '#9db4cc' }} />
+                    {sweepLines(sw, t('lab.codeLabSweepYou'), t('lab.codeLabSweepRef')).map((l) => (
+                      <Line key={l.dataKey} {...l} dot={false} isAnimationActive={false} />
+                    ))}
+                  </LineChart>
+                </SafeResponsiveContainer>
+              </div>
+              <p className="mt-1 text-[11px] leading-snug text-ink-muted">{t('lab.codeLabSweepHint')}</p>
+            </>
+          ) : (
+            <p className="text-caption text-accent-warn">{t('lab.codeLabSweepError')}{sweep.error}</p>
+          );
+          })()}
+        </div>
+      )}
+
       {(showCRef || solved) && (
         <div className="mt-3">
           <p className="mb-1 text-caption text-ink-muted">{solved ? t('lab.codeLabCUnlocked') : t('lab.codeLabCPreview')}</p>
@@ -203,4 +254,39 @@ function SingleChallenge({
       )}
     </Card>
   );
+}
+
+/** 输出线配色（学员=语义色实线，参考=灰虚线），按输出通道循环。 */
+const SWEEP_COLORS = ['#3ec8ff', '#3df0b0', '#ffb84d'];
+
+function sweepChart(
+  sweep: NonNullable<import('../../content/codelab/types').CodeChallenge['sweep']>,
+  curve: number[][],
+  youLabel: string,
+  refLabel: string,
+) {
+  const n = Math.min(sweep.reference.length, curve.length);
+  return Array.from({ length: n }, (_, i) => {
+    const x = sweep.from + ((sweep.to - sweep.from) * i) / (n - 1);
+    const row: Record<string, number> = { x: Number(x.toFixed(4)) };
+    sweep.outLabels.forEach((_, k) => {
+      row[`y${k}`] = curve[i]?.[k] ?? Number.NaN;
+      row[`r${k}`] = sweep.reference[i]?.[k] ?? Number.NaN;
+    });
+    void youLabel; void refLabel;
+    return row;
+  });
+}
+
+function sweepLines(
+  sweep: NonNullable<import('../../content/codelab/types').CodeChallenge['sweep']>,
+  youLabel: string,
+  refLabel: string,
+) {
+  const lines: Array<{ dataKey: string; stroke: string; name: string; strokeDasharray?: string }> = [];
+  sweep.outLabels.forEach((label, k) => {
+    lines.push({ dataKey: `y${k}`, stroke: SWEEP_COLORS[k % SWEEP_COLORS.length], name: `${label} · ${youLabel}` });
+    lines.push({ dataKey: `r${k}`, stroke: '#7c96b2', name: `${label} · ${refLabel}`, strokeDasharray: '4 4' });
+  });
+  return lines;
 }
