@@ -13,7 +13,7 @@
  * 视觉：accent.primary（cyan）主态；不写带阴影/光晕的"赛博"装饰。
  * 一致：与 KeyHelpOverlay 同样的 framer-motion 入场（fade + slide）。
  */
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { useI18n } from '../../i18n/useI18n';
 import {
@@ -127,7 +127,7 @@ export function UpdateBanner() {
 
   return (
     <AnimatePresence>
-      <motion.div
+      <m.div
         key="update-banner"
         role="status"
         aria-live="polite"
@@ -276,7 +276,7 @@ export function UpdateBanner() {
             </>
           )}
         </div>
-      </motion.div>
+      </m.div>
     </AnimatePresence>
   );
 }

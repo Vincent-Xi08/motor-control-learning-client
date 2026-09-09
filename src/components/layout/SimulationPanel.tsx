@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { lazy, Suspense, useMemo, useRef } from 'react';
 import { ModuleRenderer } from '../../modules/ModuleRenderer';
 import { useI18n } from '../../i18n/useI18n';
@@ -90,25 +90,25 @@ export function SimulationPanel() {
       {mode === 'teach' && <GuidedExperimentBar moduleId={activeModule} />}
       {/*
         历史教训：曾经把 ModuleRenderer 包在 <AnimatePresence mode="wait">
-        ＋ <motion.div key={activeModule}> 内做模块切换淡入淡出。但 ModuleRenderer
+        ＋ <m.div key={activeModule}> 内做模块切换淡入淡出。但 ModuleRenderer
         内部用 React.lazy + Suspense 异步加载模块 chunk，在 framer-motion v12 +
         React 19 的并发模式下出现：连续切换 14+ 模块后，新模块的 lazy promise
-        虽然已经 resolve（chunk 200 OK），但 AnimatePresence 仍然把旧 motion.div
-        卡在 exit 队列里，新 motion.div 即使挂载也只渲染 Suspense fallback——
+        虽然已经 resolve（chunk 200 OK），但 AnimatePresence 仍然把旧 m.div
+        卡在 exit 队列里，新 m.div 即使挂载也只渲染 Suspense fallback——
         因为 mode="wait" 的 exit-then-enter 锁与 Suspense throw 出来的 promise
         生命周期相互争用，旧 child 的 onExitComplete 永远不触发。
-        修复：把入场动画从外层挪到 motion.div key 上（不用 AnimatePresence），
+        修复：把入场动画从外层挪到 m.div key 上（不用 AnimatePresence），
         Suspense 的状态机就独立运行，lazy chunk 一旦 resolve 立即重渲染。
         详见 docs/E2E_APF_FLAKE_RCA.md。
       */}
-      <motion.div
+      <m.div
         key={activeModule}
         variants={moduleSwap}
         initial="hidden"
         animate="visible"
       >
         <ModuleRenderer moduleId={activeModule} />
-      </motion.div>
+      </m.div>
     </section>
   );
 }

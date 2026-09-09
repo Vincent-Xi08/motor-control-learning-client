@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 
 export interface ProbeTab {
   id: string;
@@ -71,7 +71,7 @@ export function ProbeTabs({ tabs, defaultId, storageKey }: Props) {
                 )}
               </span>
               {isActive && (
-                <motion.span
+                <m.span
                   layoutId="probe-tab-underline"
                   className="absolute -bottom-1 left-1/4 right-1/4 h-0.5 rounded-full bg-accent-measure"
                 />
@@ -81,7 +81,7 @@ export function ProbeTabs({ tabs, defaultId, storageKey }: Props) {
         })}
       </div>
       <AnimatePresence mode="wait">
-        <motion.div
+        <m.div
           key={active.id}
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
@@ -90,7 +90,7 @@ export function ProbeTabs({ tabs, defaultId, storageKey }: Props) {
           className="space-y-4"
         >
           {active.content}
-        </motion.div>
+        </m.div>
       </AnimatePresence>
     </div>
   );

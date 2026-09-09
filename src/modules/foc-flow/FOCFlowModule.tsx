@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { ArrowRight, CheckCircle2, Cpu, RotateCw } from 'lucide-react';
 import { lazy, Suspense, useMemo, useState } from 'react';
 import { AssetHero } from '../../components/layout/AssetHero';
@@ -96,7 +96,7 @@ function StepNode({ step, active, done, pulsing, onClick }: { step: FOCStep; act
       }`}
     >
       {active && pulsing && (
-        <motion.span
+        <m.span
           className="absolute -top-px left-3 h-px w-12 bg-gradient-to-r from-accent-primary via-accent-measure to-transparent"
           initial={{ x: -12, opacity: 0.3 }}
           animate={{ x: [0, 24, 0], opacity: [0.4, 1, 0.4] }}

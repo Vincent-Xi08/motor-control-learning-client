@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import type { ReactNode } from 'react';
 import { moduleEntry } from '../../utils/motion';
 
@@ -18,12 +18,12 @@ interface Props {
  */
 export function ModuleLayout({ primary, probe, concept }: Props) {
   return (
-    <motion.div variants={moduleEntry} initial="hidden" animate="visible" className="space-y-4">
+    <m.div variants={moduleEntry} initial="hidden" animate="visible" className="space-y-4">
       <div className={probe ? 'grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_1fr]' : ''}>
         <div className="min-w-0">{primary}</div>
         {probe && <div className="min-w-0 space-y-4">{probe}</div>}
       </div>
       {concept && <div>{concept}</div>}
-    </motion.div>
+    </m.div>
   );
 }

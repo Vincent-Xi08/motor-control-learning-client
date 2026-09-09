@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { Award, CheckCircle2, Clock, GraduationCap, RotateCcw, X } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
 import { useI18n, type TKey } from '../../i18n/useI18n';
@@ -91,7 +91,7 @@ export function ProgressModal({ open, onClose }: Props) {
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
+        <m.div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-bg-base/80 p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -102,7 +102,7 @@ export function ProgressModal({ open, onClose }: Props) {
           aria-modal="true"
           aria-label={t('shell.progressDetailsAria')}
         >
-          <motion.div
+          <m.div
             className="relative max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-line-subtle bg-bg-surface p-5 shadow-2xl"
             initial={{ opacity: 0, y: 16, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -180,8 +180,8 @@ export function ProgressModal({ open, onClose }: Props) {
 
             {/* 模块卡片网格 */}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {moduleMetas.map((m, idx) => {
-                const p = perModule[m.id];
+              {moduleMetas.map((meta, idx) => {
+                const p = perModule[meta.id];
                 const visited = p?.visited ?? false;
                 const visits = p?.visitCount ?? 0;
                 const completions = p?.walkthroughCompletions ?? 0;
@@ -196,8 +196,8 @@ export function ProgressModal({ open, onClose }: Props) {
                     ? 'border-accent-measure/40 bg-bg-base'
                     : 'border-line-subtle bg-bg-base/60';
                 return (
-                  <motion.div
-                    key={m.id}
+                  <m.div
+                    key={meta.id}
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.18, delay: Math.min(0.4, idx * 0.015) }}
@@ -206,7 +206,7 @@ export function ProgressModal({ open, onClose }: Props) {
                     <div className="mb-1.5 flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 text-caption text-ink-muted">
-                          <span className="tabular-nums">{m.stage}</span>
+                          <span className="tabular-nums">{meta.stage}</span>
                           {visited && !completions && (
                             <CheckCircle2 className="h-3 w-3 text-accent-measure" aria-label={t('shell.progressSummaryVisited')} />
                           )}
@@ -218,11 +218,11 @@ export function ProgressModal({ open, onClose }: Props) {
                           )}
                         </div>
                         <h3 className="truncate text-body font-medium text-ink-primary">
-                          {localizeModuleMeta(m, locale).title}
+                          {localizeModuleMeta(meta, locale).title}
                         </h3>
                       </div>
                     </div>
-                    <p className="mb-2 line-clamp-2 text-caption text-ink-muted">{m.subtitle}</p>
+                    <p className="mb-2 line-clamp-2 text-caption text-ink-muted">{meta.subtitle}</p>
                     <dl className="grid grid-cols-2 gap-1 text-caption">
                       <div className="flex items-center gap-1 text-ink-muted">
                         <span>{t('shell.progressStatVisited')}</span>
@@ -245,12 +245,12 @@ export function ProgressModal({ open, onClose }: Props) {
                         <span className="ml-auto text-ink-muted">{formatLastVisit(last, t)}</span>
                       </div>
                     </dl>
-                  </motion.div>
+                  </m.div>
                 );
               })}
             </div>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

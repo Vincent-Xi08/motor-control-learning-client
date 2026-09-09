@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { Cloud, CloudDownload, Loader2, RefreshCw, X } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useCloudShareStore } from '../../store/cloudShareStore';
@@ -110,7 +110,7 @@ export function SnapshotPickerDialog({ open, onPick, onClose }: SnapshotPickerDi
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
+        <m.div
           key="snapshot-picker-dialog"
           role="dialog"
           aria-modal="true"
@@ -122,7 +122,7 @@ export function SnapshotPickerDialog({ open, onPick, onClose }: SnapshotPickerDi
           transition={{ duration: 0.15 }}
           onClick={onClose}
         >
-          <motion.div
+          <m.div
             className="scrollbar-thin flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-line-subtle bg-bg-surface shadow-xl"
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -296,8 +296,8 @@ export function SnapshotPickerDialog({ open, onPick, onClose }: SnapshotPickerDi
                 {t('common.cancel')}
               </Button>
             </footer>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

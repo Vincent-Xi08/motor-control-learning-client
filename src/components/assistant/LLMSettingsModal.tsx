@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import {
   Check,
   CircleAlert,
@@ -178,7 +178,7 @@ export function LLMSettingsModal({ open, onClose }: Props) {
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
+        <m.div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4 py-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -186,7 +186,7 @@ export function LLMSettingsModal({ open, onClose }: Props) {
           transition={{ duration: 0.16 }}
           onClick={onClose}
         >
-          <motion.div
+          <m.div
             ref={dialogRef}
             role="dialog"
             aria-modal="true"
@@ -561,8 +561,8 @@ export function LLMSettingsModal({ open, onClose }: Props) {
                 {t('common.close')}
               </Button>
             </footer>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

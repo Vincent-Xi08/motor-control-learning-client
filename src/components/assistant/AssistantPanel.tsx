@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { Send, Settings, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAssistantStore, type AssistantCitation, type AssistantMessage } from '../../store/assistantStore';
@@ -315,7 +315,7 @@ export function AssistantPanel() {
     <>
       <AnimatePresence>
         {open && (
-          <motion.div
+          <m.div
             ref={dialogRef}
             id="assistant-panel"
             role="dialog"
@@ -479,7 +479,7 @@ export function AssistantPanel() {
                 </button>
               </div>
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 

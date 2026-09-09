@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { useEffect, useRef } from 'react';
 import type { Shortcut } from '../../utils/useKeyboardShortcuts';
 import { useI18n } from '../../i18n/useI18n';
@@ -79,7 +79,7 @@ export function KeyHelpOverlay({ open, shortcuts, onClose }: KeyHelpOverlayProps
   return (
     <AnimatePresence>
       {open && (
-        <motion.div
+        <m.div
           key="key-help-overlay"
           role="dialog"
           aria-modal="true"
@@ -91,7 +91,7 @@ export function KeyHelpOverlay({ open, shortcuts, onClose }: KeyHelpOverlayProps
           transition={{ duration: 0.15 }}
           onClick={onClose}
         >
-          <motion.div
+          <m.div
             ref={dialogRef}
             className="scrollbar-thin max-h-[80vh] w-full max-w-2xl overflow-auto rounded-2xl border border-line-subtle bg-bg-surface p-5 shadow-xl"
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
@@ -132,8 +132,8 @@ export function KeyHelpOverlay({ open, shortcuts, onClose }: KeyHelpOverlayProps
                 </section>
               ))}
             </div>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

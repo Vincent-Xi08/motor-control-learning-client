@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { X, Check, CircleAlert } from 'lucide-react';
 import { useSimulationStore } from '../../store/simulationStore';
 import { Button } from '../ui/Button';
@@ -155,7 +155,7 @@ export function ReceiveSnapshotModal({ open, decoded, onApply, onClose }: Receiv
   return (
     <AnimatePresence>
       {open && decoded && (
-        <motion.div
+        <m.div
           key="receive-snapshot-modal"
           role="dialog"
           aria-modal="true"
@@ -167,7 +167,7 @@ export function ReceiveSnapshotModal({ open, decoded, onApply, onClose }: Receiv
           transition={{ duration: 0.15 }}
           onClick={onClose}
         >
-          <motion.div
+          <m.div
             ref={dialogRef}
             className="scrollbar-thin flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-line-subtle bg-bg-surface shadow-xl"
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
@@ -340,8 +340,8 @@ export function ReceiveSnapshotModal({ open, decoded, onApply, onClose }: Receiv
                 {t('share.recvApplySuffix')}
               </Button>
             </footer>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
   );
