@@ -10,6 +10,7 @@ import { runChallenge, runSweep, type RunResult, type SweepResult } from '../../
 import { codeChallenges } from '../../content/codelab/index';
 import { codeLabSolutions } from '../../content/codelab/solutions';
 import { useSimulationStore } from '../../store/simulationStore';
+import { useCodelabStore } from '../../store/codelabStore';
 
 /**
  * 编程实验室卡：当前模块的动手编程挑战。
@@ -50,7 +51,8 @@ function SingleChallenge({
   const [code, setCode] = usePersistentState(`codelab.code.${challengeId}`, starter ?? '');
   const [result, setResult] = useState<RunResult | null>(null);
   const [hintsShown, setHintsShown] = usePersistentState(`codelab.hints.${challengeId}`, 0);
-  const [solved, setSolved] = usePersistentState(`codelab.solved.${challengeId}`, false);
+  const solved = useCodelabStore((s) => Boolean(s.solved[challengeId]));
+  const markSolved = useCodelabStore((s) => s.markSolved);
   const [showSolution, setShowSolution] = useState(false);
   const [showCRef, setShowCRef] = useState(false);
   const [sweep, setSweep] = useState<SweepResult | null>(null);
@@ -61,7 +63,7 @@ function SingleChallenge({
     const r = runChallenge(challenge, code);
     setResult(r);
     if (r.ok) {
-      setSolved(true);
+      markSolved(challengeId);
       // 通关即算曲线：把学员函数在扫描区间上逐点跑一遍（有 sweep 定义的题）
       setSweep(challenge.sweep ? runSweep(challenge, code, challenge.sweep) : null);
     } else {

@@ -1,25 +1,18 @@
 import { CheckCircle2, Circle, Code2 } from 'lucide-react';
 import { useI18n } from '../../i18n/useI18n';
 import { codeChallenges } from '../../content/codelab/index';
+import { useCodelabStore } from '../../store/codelabStore';
 
 /**
- * 编程实验室进度面板：读取 CodeLabCard 持久化的通关状态
- * （localStorage key `codelab.solved.<id>`），展示 16 题进度与逐题清单。
- * 视图打开时挂载即读取，无需订阅（通关发生在模块页内）。
+ * 编程实验室进度面板：订阅 codelabStore 的通关状态（persist 到
+ * localStorage `compressor-bench-codelab`），展示 16 题进度与逐题清单。
+ * 模块页通关 → store 更新 → 本面板实时响应（同页签内）。
  */
 export function CodeLabProgressPanel() {
   const { t, locale } = useI18n();
+  const solvedMap = useCodelabStore((s) => s.solved);
 
-  const solvedIds = new Set<string>();
-  if (typeof localStorage !== 'undefined') {
-    for (const ch of codeChallenges) {
-      try {
-        const raw = localStorage.getItem(`codelab.solved.${ch.id}`);
-        if (raw !== null && JSON.parse(raw) === true) solvedIds.add(ch.id);
-      } catch { /* 忽略损坏条目 */ }
-    }
-  }
-  const solved = solvedIds.size;
+  const solved = codeChallenges.filter((ch) => solvedMap[ch.id]).length;
   const total = codeChallenges.length;
   const pct = total > 0 ? Math.round((solved / total) * 100) : 0;
 
@@ -54,7 +47,7 @@ export function CodeLabProgressPanel() {
 
       <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
         {codeChallenges.map((ch) => {
-          const done = solvedIds.has(ch.id);
+          const done = Boolean(solvedMap[ch.id]);
           return (
             <li
               key={ch.id}
