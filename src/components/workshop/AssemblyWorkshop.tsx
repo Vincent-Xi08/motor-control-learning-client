@@ -647,15 +647,20 @@ function Kpi({ label, value, tone }: { label: string; value: string; tone?: 'mea
   );
 }
 
-function DiagnosticRow({ item }: { item: { level: 'ok' | 'warn' | 'fault'; message: string; hintModule?: string } }) {
-  const { t } = useI18n();
+function DiagnosticRow({
+  item,
+}: {
+  item: { level: 'ok' | 'warn' | 'fault'; message: string; messageEn?: string; hintModule?: string };
+}) {
+  const { t, locale } = useI18n();
   const Icon = item.level === 'ok' ? CheckCircle2 : item.level === 'warn' ? AlertCircle : AlertTriangle;
   const cls = item.level === 'ok' ? 'text-accent-measure' : item.level === 'warn' ? 'text-accent-warn' : 'text-accent-fault';
+  const message = locale === 'en-US' ? (item.messageEn ?? item.message) : item.message;
   return (
     <li className="flex items-start gap-2 text-caption leading-relaxed">
       <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${cls}`} />
       <div className="min-w-0">
-        <p className="text-ink-secondary">{item.message}</p>
+        <p className="text-ink-secondary">{message}</p>
         {item.hintModule && <p className="mt-0.5 text-[10px] text-ink-muted">{t('assemblyWorkshop.reviewModulePrefix')}{item.hintModule}{t('assemblyWorkshop.reviewModuleSuffix')}</p>}
       </div>
     </li>

@@ -9,6 +9,7 @@ import {
   pfcPlatforms,
   type AssemblyResult,
   type ControlStrategy,
+  type DiagnosticItem,
   type LiquidSeparator,
   type LoadCondition,
   type PfcPlatform,
@@ -49,22 +50,40 @@ interface Props {
   onSwapSeparator: (idx: number) => void;
 }
 
-// 把每条诊断消息的关键字映射到受影响的积木块。同一条诊断可能命中多个块（如"冷媒不匹配"= load+compressor）。
-function affectedBlocks(message: string): SlotKey[] {
-  const out: SlotKey[] = [];
-  if (message.includes('冷媒不匹配')) { out.push('load', 'compressor'); }
-  if (message.includes('零速启动')) { out.push('strategy', 'compressor'); }
-  if (message.includes('凸极比')) { out.push('strategy', 'compressor'); }
-  if (message.includes('逆变器额定') || message.includes('OCP')) { out.push('inverter'); }
-  if (message.includes('排气温度')) { out.push('compressor', 'load'); }
-  if (message.includes('压比') && message.includes('超过')) { out.push('compressor'); }
-  if (message.includes('需求 Iq') && message.includes('额定')) { out.push('compressor', 'inverter'); }
-  if (message.includes('需求电压') || message.includes('母线线性区')) { out.push('strategy', 'inverter'); }
-  if (message.includes('液击') || message.includes('斜坡') || message.includes('分离器')) { out.push('separator'); }
-  if (message.includes('GB 17625') || message.includes('THD')) { out.push('pfc'); }
-  if (message.includes('未达到目标转速') || message.includes('收敛时间')) { out.push('strategy', 'load'); }
-  if (message.includes('过流') && !out.length) { out.push('inverter'); }
-  return [...new Set(out)];  // 去重
+// 诊断 code → 受影响积木块（结构化映射，替代旧的 message 中文关键字 includes 匹配——
+// 那是与 content 层措辞的隐性契约，content 双语化后会静默失效）。同一条诊断可能命中多个块。
+const CODE_AFFECTED: Record<string, SlotKey[]> = {
+  'refrigerant-mismatch': ['load', 'compressor'],
+  'refrigerant-ok': [],
+  'startup-incapable': ['strategy', 'compressor'],
+  'saliency-weak': ['strategy', 'compressor'],
+  'startup-plan-ok': [],
+  'inverter-current-short': ['inverter'],
+  'inverter-current-tight': ['inverter'],
+  'inverter-current-ok': [],
+  'discharge-over': ['compressor', 'load'],
+  'discharge-near': ['compressor', 'load'],
+  'discharge-ok': [],
+  'pressure-ratio-over': ['compressor'],
+  'iq-over-rated': ['compressor', 'inverter'],
+  'iq-tight': ['compressor', 'inverter'],
+  'iq-ok': [],
+  'voltage-over-fw': ['strategy', 'inverter'],
+  'voltage-over-nofw': ['strategy', 'inverter'],
+  'voltage-ok': [],
+  'ramp-over': ['separator'],
+  'ramp-near': ['separator'],
+  'ramp-ok': [],
+  'pfc-noncompliant': ['pfc'],
+  'pfc-ok': [],
+  'startup-failed': ['strategy', 'load'],
+  'startup-slow': ['strategy', 'load'],
+  'startup-ok': [],
+  'transient-flag': ['inverter'],
+};
+
+function affectedBlocks(item: DiagnosticItem): SlotKey[] {
+  return CODE_AFFECTED[item.code] ?? [];
 }
 
 /** 由诊断结果计算每个 slot 的最高告警等级（fault > warn > none） */
@@ -75,7 +94,7 @@ function computeFaultMap(result: AssemblyResult | null | undefined): Record<Slot
   if (!result) return map;
   for (const item of result.items) {
     if (item.level === 'ok') continue;
-    const blocks = affectedBlocks(item.message);
+    const blocks = affectedBlocks(item);
     for (const b of blocks) {
       if (item.level === 'fault') map[b] = 'fault';
       else if (item.level === 'warn' && map[b] === 'none') map[b] = 'warn';

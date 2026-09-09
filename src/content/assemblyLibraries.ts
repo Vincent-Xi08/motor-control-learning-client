@@ -277,9 +277,27 @@ export const inverterPlatforms: InverterPlatform[] = [
 
 export type Verdict = 'pass' | 'pass-warn' | 'fail';
 
+/** 诊断点稳定标识：UI 按它映射受影响积木块 / 双语文案，禁止用 message 文本匹配 */
+export type DiagnosticCode =
+  | 'refrigerant-mismatch' | 'refrigerant-ok'
+  | 'startup-incapable' | 'saliency-weak' | 'startup-plan-ok'
+  | 'inverter-current-short' | 'inverter-current-tight' | 'inverter-current-ok'
+  | 'discharge-over' | 'discharge-near' | 'discharge-ok'
+  | 'pressure-ratio-over'
+  | 'iq-over-rated' | 'iq-tight' | 'iq-ok'
+  | 'voltage-over-fw' | 'voltage-over-nofw' | 'voltage-ok'
+  | 'ramp-over' | 'ramp-near' | 'ramp-ok'
+  | 'pfc-noncompliant' | 'pfc-ok'
+  | 'startup-failed' | 'startup-slow' | 'startup-ok'
+  | 'transient-flag';
+
 export interface DiagnosticItem {
   level: 'ok' | 'warn' | 'fault';
+  /** 稳定标识（受影响积木块映射 / 双语切换的键） */
+  code: DiagnosticCode;
   message: string;
+  /** 英文消息（en-US 渲染侧使用） */
+  messageEn: string;
   /** 关联建议（学员可以去哪个模块复习 / 调） */
   hintModule?: string;
 }
@@ -507,51 +525,56 @@ export function runAssembly(opts: {
   const separator = opts.separator ?? liquidSeparators.find((s) => s.id === 'standard') ?? liquidSeparators[1];
   const vdcEffective = pfc.vdcOutput;
   const items: DiagnosticItem[] = [];
+  /** 诊断条目构造：强制 code + 双语消息，保证 EN 渲染与积木块映射不靠文本匹配 */
+  const push = (
+    code: DiagnosticItem['code'],
+    level: DiagnosticItem['level'],
+    message: string,
+    messageEn: string,
+    hintModule?: string,
+  ): void => {
+    items.push({ code, level, message, messageEn, hintModule });
+  };
 
   // 1) 冷媒匹配
   if (compressor.refrigerant !== load.refrigerant) {
-    items.push({
-      level: 'fault',
-      message: `冷媒不匹配：压缩机标定 ${compressor.refrigerant}，工况要求 ${load.refrigerant}（压力/排气特性差异巨大，强制运行会损坏压缩机）`,
-      hintModule: '16 制冷台架',
-    });
+    push('refrigerant-mismatch', 'fault',
+      `冷媒不匹配：压缩机标定 ${compressor.refrigerant}，工况要求 ${load.refrigerant}（压力/排气特性差异巨大，强制运行会损坏压缩机）`,
+      `Refrigerant mismatch: compressor calibrated for ${compressor.refrigerant}, load requires ${load.refrigerant} (pressure/discharge characteristics differ drastically — forced operation will damage the compressor)`,
+      '16 制冷台架');
   } else {
-    items.push({ level: 'ok', message: `冷媒匹配 ${compressor.refrigerant}` });
+    push('refrigerant-ok', 'ok', `冷媒匹配 ${compressor.refrigerant}`, `Refrigerant matches: ${compressor.refrigerant}`);
   }
 
   // 2) 启动可行性：HFI / BEMF 与 targetRpm 的匹配
   if (!strategy.zeroSpeedStartCapable && load.targetRpm > 0) {
-    items.push({
-      level: 'fault',
-      message: `控制策略「${strategy.name}」无法零速启动，必须叠开环 V/f 段先拉到能观测的速度（典型 200-500 rpm）`,
-      hintModule: '14 启动状态机',
-    });
+    push('startup-incapable', 'fault',
+      `控制策略「${strategy.name}」无法零速启动，必须叠开环 V/f 段先拉到能观测的速度（典型 200-500 rpm）`,
+      `Control strategy "${strategy.name}" cannot start from zero speed — an open-loop V/f stage is required first to reach an observable speed (typically 200-500 rpm)`,
+      '14 启动状态机');
   } else if (strategy.id === 'foc-hfi-bemf' && (compressor.lqMh / compressor.ldMh) < 1.2) {
-    items.push({
-      level: 'warn',
-      message: `HFI 需要凸极比 Lq/Ld > 1.2，当前压缩机凸极比 ${(compressor.lqMh / compressor.ldMh).toFixed(2)}，解调信号弱、易丢角度`,
-      hintModule: '13 HFI 无感',
-    });
+    push('saliency-weak', 'warn',
+      `HFI 需要凸极比 Lq/Ld > 1.2，当前压缩机凸极比 ${(compressor.lqMh / compressor.ldMh).toFixed(2)}，解调信号弱、易丢角度`,
+      `HFI needs saliency ratio Lq/Ld > 1.2; this compressor's ratio is ${(compressor.lqMh / compressor.ldMh).toFixed(2)} — weak demodulation signal, angle loss likely`,
+      '13 HFI 无感');
   } else {
-    items.push({ level: 'ok', message: `启动方案与压缩机匹配（${strategy.name}）` });
+    push('startup-plan-ok', 'ok', `启动方案与压缩机匹配（${strategy.name}）`, `Startup plan matches the compressor (${strategy.name})`);
   }
 
   // 3) 电流余量：逆变器额定电流 vs 压缩机额定电流（1.5x 经验值用于过载冲击）
   const currentMarginRatio = inverter.ratedCurrentA / compressor.ratedCurrentA;
   if (currentMarginRatio < 1.5) {
-    items.push({
-      level: 'fault',
-      message: `逆变器额定 ${inverter.ratedCurrentA}A < 压缩机额定 ${compressor.ratedCurrentA}A × 1.5（启动冲击会触发 OCP）`,
-      hintModule: '08 三相逆变器',
-    });
+    push('inverter-current-short', 'fault',
+      `逆变器额定 ${inverter.ratedCurrentA}A < 压缩机额定 ${compressor.ratedCurrentA}A × 1.5（启动冲击会触发 OCP）`,
+      `Inverter rated ${inverter.ratedCurrentA}A < compressor rated ${compressor.ratedCurrentA}A × 1.5 (start-up surge will trip OCP)`,
+      '08 三相逆变器');
   } else if (currentMarginRatio < 2.0) {
-    items.push({
-      level: 'warn',
-      message: `逆变器电流余量偏小（${currentMarginRatio.toFixed(1)}×），高温重载工况下接近上限`,
-      hintModule: '08 三相逆变器',
-    });
+    push('inverter-current-tight', 'warn',
+      `逆变器电流余量偏小（${currentMarginRatio.toFixed(1)}×），高温重载工况下接近上限`,
+      `Inverter current margin is tight (${currentMarginRatio.toFixed(1)}×) — close to the limit under hot, heavy load`,
+      '08 三相逆变器');
   } else {
-    items.push({ level: 'ok', message: `逆变器电流余量充足（${currentMarginRatio.toFixed(1)}×）` });
+    push('inverter-current-ok', 'ok', `逆变器电流余量充足（${currentMarginRatio.toFixed(1)}×）`, `Inverter current margin is ample (${currentMarginRatio.toFixed(1)}×)`);
   }
 
   // 4) 跑稳态制冷循环
@@ -571,46 +594,43 @@ export function runAssembly(opts: {
   // 5) 排气温度
   const tdLimit = TDISCHARGE_LIMIT_C[compressor.refrigerant];
   if (cycle.Tdischarge > tdLimit) {
-    items.push({
-      level: 'fault',
-      message: `排气温度 ${cycle.Tdischarge.toFixed(1)}°C 超过 ${compressor.refrigerant} 限值 ${tdLimit}°C（润滑油氧化、阀片烧蚀风险）`,
-      hintModule: '16 制冷台架',
-    });
+    push('discharge-over', 'fault',
+      `排气温度 ${cycle.Tdischarge.toFixed(1)}°C 超过 ${compressor.refrigerant} 限值 ${tdLimit}°C（润滑油氧化、阀片烧蚀风险）`,
+      `Discharge temperature ${cycle.Tdischarge.toFixed(1)}°C exceeds the ${compressor.refrigerant} limit of ${tdLimit}°C (oil oxidation, valve burn risk)`,
+      '16 制冷台架');
   } else if (cycle.Tdischarge > tdLimit - 15) {
-    items.push({
-      level: 'warn',
-      message: `排气温度 ${cycle.Tdischarge.toFixed(1)}°C 接近限值（${tdLimit}°C），高负载长期运行需监控`,
-    });
+    push('discharge-near', 'warn',
+      `排气温度 ${cycle.Tdischarge.toFixed(1)}°C 接近限值（${tdLimit}°C），高负载长期运行需监控`,
+      `Discharge temperature ${cycle.Tdischarge.toFixed(1)}°C is near the limit (${tdLimit}°C) — monitor under sustained high load`,
+    );
   } else {
-    items.push({ level: 'ok', message: `排气温度 ${cycle.Tdischarge.toFixed(1)}°C 安全` });
+    push('discharge-ok', 'ok', `排气温度 ${cycle.Tdischarge.toFixed(1)}°C 安全`, `Discharge temperature ${cycle.Tdischarge.toFixed(1)}°C is safe`);
   }
 
   // 6) 压比
   const prLimit = PRESSURE_RATIO_LIMIT[compressor.refrigerant];
   if (cycle.pressureRatio > prLimit) {
-    items.push({
-      level: 'fault',
-      message: `压比 ${cycle.pressureRatio.toFixed(2)} 超过 ${prLimit}（压缩机超工况运行）`,
-      hintModule: '16 制冷台架',
-    });
+    push('pressure-ratio-over', 'fault',
+      `压比 ${cycle.pressureRatio.toFixed(2)} 超过 ${prLimit}（压缩机超工况运行）`,
+      `Pressure ratio ${cycle.pressureRatio.toFixed(2)} exceeds ${prLimit} (compressor running beyond its envelope)`,
+      '16 制冷台架');
   }
 
   // 7) Iq 需求 vs 额定
   const torqueLoad = cycle.torqueLoad;
   const requiredIq = torqueLoad / (1.5 * compressor.polePairs * compressor.flux);
   if (requiredIq > compressor.ratedCurrentA) {
-    items.push({
-      level: 'fault',
-      message: `需求 Iq ${requiredIq.toFixed(2)}A > 压缩机额定 ${compressor.ratedCurrentA}A（长期会烧绕组）`,
-      hintModule: '11 弱磁',
-    });
+    push('iq-over-rated', 'fault',
+      `需求 Iq ${requiredIq.toFixed(2)}A > 压缩机额定 ${compressor.ratedCurrentA}A（长期会烧绕组）`,
+      `Required Iq ${requiredIq.toFixed(2)}A > compressor rated ${compressor.ratedCurrentA}A (windings will burn out over time)`,
+      '11 弱磁');
   } else if (requiredIq > compressor.ratedCurrentA * 0.85) {
-    items.push({
-      level: 'warn',
-      message: `需求 Iq ${requiredIq.toFixed(2)}A 占额定 ${(requiredIq / compressor.ratedCurrentA * 100).toFixed(0)}%，余量小`,
-    });
+    push('iq-tight', 'warn',
+      `需求 Iq ${requiredIq.toFixed(2)}A 占额定 ${(requiredIq / compressor.ratedCurrentA * 100).toFixed(0)}%，余量小`,
+      `Required Iq ${requiredIq.toFixed(2)}A is ${(requiredIq / compressor.ratedCurrentA * 100).toFixed(0)}% of rating — little headroom`,
+    );
   } else {
-    items.push({ level: 'ok', message: `稳态 Iq ${requiredIq.toFixed(2)}A，占额定 ${(requiredIq / compressor.ratedCurrentA * 100).toFixed(0)}%` });
+    push('iq-ok', 'ok', `稳态 Iq ${requiredIq.toFixed(2)}A，占额定 ${(requiredIq / compressor.ratedCurrentA * 100).toFixed(0)}%`, `Steady-state Iq ${requiredIq.toFixed(2)}A — ${(requiredIq / compressor.ratedCurrentA * 100).toFixed(0)}% of rating`);
   }
 
   // 8) 反电动势 vs 母线电压（弱磁能力 / SVPWM 线性区）
@@ -631,47 +651,45 @@ export function runAssembly(opts: {
 
   if (Vmag > VbusMax) {
     if (strategy.fieldWeakening) {
-      items.push({
-        level: 'warn',
-        message: `需求电压 ${Vmag.toFixed(1)}V > 母线线性区 ${VbusMax.toFixed(1)}V（${modLabel} @ ${vdcEffective}V 母线），弱磁可注入负 Id 扩展恒功率区`,
-        hintModule: '11 弱磁',
-      });
+      push('voltage-over-fw', 'warn',
+        `需求电压 ${Vmag.toFixed(1)}V > 母线线性区 ${VbusMax.toFixed(1)}V（${modLabel} @ ${vdcEffective}V 母线），弱磁可注入负 Id 扩展恒功率区`,
+        `Required voltage ${Vmag.toFixed(1)}V > bus linear region ${VbusMax.toFixed(1)}V (${modLabel} @ ${vdcEffective}V bus) — field weakening can inject negative Id to extend the constant-power region`,
+        '11 弱磁');
     } else {
-      items.push({
-        level: 'fault',
-        message: `需求电压 ${Vmag.toFixed(1)}V > 母线线性区 ${VbusMax.toFixed(1)}V（${modLabel} @ ${vdcEffective}V 母线），但控制策略不支持弱磁 → 无法到目标转速`,
-        hintModule: '11 弱磁',
-      });
+      push('voltage-over-nofw', 'fault',
+        `需求电压 ${Vmag.toFixed(1)}V > 母线线性区 ${VbusMax.toFixed(1)}V（${modLabel} @ ${vdcEffective}V 母线），但控制策略不支持弱磁 → 无法到目标转速`,
+        `Required voltage ${Vmag.toFixed(1)}V > bus linear region ${VbusMax.toFixed(1)}V (${modLabel} @ ${vdcEffective}V bus), but the strategy has no field weakening → target speed unreachable`,
+        '11 弱磁');
     }
   } else {
-    items.push({ level: 'ok', message: `电压利用率 ${(Vmag / VbusMax * 100).toFixed(0)}%，余量 ${busHeadroomPct.toFixed(0)}%（${modLabel} @ ${vdcEffective}V）` });
+    push('voltage-ok', 'ok',
+      `电压利用率 ${(Vmag / VbusMax * 100).toFixed(0)}%，余量 ${busHeadroomPct.toFixed(0)}%（${modLabel} @ ${vdcEffective}V）`,
+      `Voltage utilization ${(Vmag / VbusMax * 100).toFixed(0)}%, headroom ${busHeadroomPct.toFixed(0)}% (${modLabel} @ ${vdcEffective}V)`);
   }
 
   // 9) 加速斜坡 vs 液气分离器承载力
   if (load.rampRpmS > separator.maxRampRpmS) {
-    items.push({
-      level: 'fault',
-      message: `工况加速斜坡 ${load.rampRpmS} rpm/s 超过${separator.name}承载 ${separator.maxRampRpmS} rpm/s — 液击会撞坏阀片与曲轴`,
-      hintModule: '14 启动状态机',
-    });
+    push('ramp-over', 'fault',
+      `工况加速斜坡 ${load.rampRpmS} rpm/s 超过${separator.name}承载 ${separator.maxRampRpmS} rpm/s — 液击会撞坏阀片与曲轴`,
+      `Load acceleration ramp ${load.rampRpmS} rpm/s exceeds the ${separator.name} capacity of ${separator.maxRampRpmS} rpm/s — slugging will damage valves and crankshaft`,
+      '14 启动状态机');
   } else if (load.rampRpmS > separator.maxRampRpmS * 0.8) {
-    items.push({
-      level: 'warn',
-      message: `加速斜坡 ${load.rampRpmS} rpm/s 接近${separator.name}上限 ${separator.maxRampRpmS}，留余量更稳妥`,
-    });
+    push('ramp-near', 'warn',
+      `加速斜坡 ${load.rampRpmS} rpm/s 接近${separator.name}上限 ${separator.maxRampRpmS}，留余量更稳妥`,
+      `Acceleration ramp ${load.rampRpmS} rpm/s is near the ${separator.name} limit of ${separator.maxRampRpmS} — keep more margin`,
+    );
   } else {
-    items.push({ level: 'ok', message: `加速斜坡 ${load.rampRpmS} rpm/s 在${separator.name}承载范围内` });
+    push('ramp-ok', 'ok', `加速斜坡 ${load.rampRpmS} rpm/s 在${separator.name}承载范围内`, `Acceleration ramp ${load.rampRpmS} rpm/s is within ${separator.name} capacity`);
   }
 
   // 9b) PFC 谐波 / 功率因数
   if (!pfc.meetsHarmonicStandard) {
-    items.push({
-      level: 'fault',
-      message: `${pfc.name}：THD ${pfc.inputThdPct}% / PF ${pfc.pf} — 不满足 GB 17625.1 谐波认证，不能合规出厂`,
-      hintModule: '15 APF 前级 PFC',
-    });
+    push('pfc-noncompliant', 'fault',
+      `${pfc.name}：THD ${pfc.inputThdPct}% / PF ${pfc.pf} — 不满足 GB 17625.1 谐波认证，不能合规出厂`,
+      `${pfc.name}: THD ${pfc.inputThdPct}% / PF ${pfc.pf} — fails GB 17625.1 harmonic compliance, cannot ship certified`,
+      '15 APF 前级 PFC');
   } else {
-    items.push({ level: 'ok', message: `${pfc.name}：THD ${pfc.inputThdPct}% / PF ${pfc.pf}，符合谐波合规` });
+    push('pfc-ok', 'ok', `${pfc.name}：THD ${pfc.inputThdPct}% / PF ${pfc.pf}，符合谐波合规`, `${pfc.name}: THD ${pfc.inputThdPct}% / PF ${pfc.pf} — harmonics compliant`);
   }
 
   // 10) 时域仿真：8s 启动 + 稳态过程
@@ -680,28 +698,26 @@ export function runAssembly(opts: {
 
   // 11) 启动结果反馈到诊断
   if (!timeline.reachedTarget) {
-    items.push({
-      level: 'fault',
-      message: `8 秒仿真内未达到目标转速 ${load.targetRpm} rpm（启动失败 / 策略与压缩机不匹配）`,
-      hintModule: '14 启动状态机',
-    });
+    push('startup-failed', 'fault',
+      `8 秒仿真内未达到目标转速 ${load.targetRpm} rpm（启动失败 / 策略与压缩机不匹配）`,
+      `Target speed ${load.targetRpm} rpm not reached within the 8 s simulation (start-up failed / strategy-compressor mismatch)`,
+      '14 启动状态机');
   } else if (timeline.settling95PctS > 5) {
-    items.push({
-      level: 'warn',
-      message: `稳态收敛时间 ${timeline.settling95PctS.toFixed(1)} s > 5 s，启动偏慢`,
-      hintModule: '14 启动状态机',
-    });
+    push('startup-slow', 'warn',
+      `稳态收敛时间 ${timeline.settling95PctS.toFixed(1)} s > 5 s，启动偏慢`,
+      `Settling time ${timeline.settling95PctS.toFixed(1)} s > 5 s — start-up is slow`,
+      '14 启动状态机');
   } else {
-    items.push({
-      level: 'ok',
-      message: `启动正常：50% 用时 ${timeline.rise50PctS.toFixed(2)} s · 95% 收敛 ${timeline.settling95PctS.toFixed(2)} s`,
-    });
+    push('startup-ok', 'ok',
+      `启动正常：50% 用时 ${timeline.rise50PctS.toFixed(2)} s · 95% 收敛 ${timeline.settling95PctS.toFixed(2)} s`,
+      `Start-up normal: 50% at ${timeline.rise50PctS.toFixed(2)} s · 95% settled at ${timeline.settling95PctS.toFixed(2)} s`,
+    );
   }
   if (timeline.hadFault) {
-    items.push({
-      level: 'warn',
-      message: '启动过程中曾出现过流/电压饱和瞬态故障旗（时间线已标红）',
-    });
+    push('transient-flag', 'warn',
+      '启动过程中曾出现过流/电压饱和瞬态故障旗（时间线已标红）',
+      'Over-current / voltage-saturation transient flags appeared during start-up (marked red on the timeline)',
+    );
   }
 
   // 综合判定
