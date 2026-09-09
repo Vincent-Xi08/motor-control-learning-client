@@ -115,3 +115,31 @@ node scripts/analyze-bundle.mjs   # 看 top-20 + 分类
 npm run verify               # 81 files + 16 modules 全过
 ```
 
+
+---
+
+## 八、v0.2 复测（2026-09-09 追加）
+
+v0.2 双栏沉浸壳层重写 + 主包瘦身（887→423 kB）后，用修复过的 perf 工具复测生产首挂：
+
+| Module | R2 基线 | v0.2 复测 | 变化 |
+|---|---|---|---|
+| motor-basics | 597 ms | 365 ms | -39% |
+| clarke-transform | 513 ms | 152 ms | -70% |
+| pid-control | 447 ms | 208 ms | -54% |
+
+复测环境：`vite preview`（4173）生产 bundle，Click → "教学讲义" 可见，与 R2 同口径。
+
+**后续优化项状态更新**：
+
+- **P1 · 14 MB PNG 剥离**：已完成（`trim-png-fallbacks` vite 插件，dist/assets/generated/*.png 构建时删除，webp 0.68 MB 交付，AssetHero `<picture>` 实测正常）。
+- **P1 · 3D IntersectionObserver 懒挂载**：已实现并**回滚**（2026-09-08）。桌面端 3D 场景基本首屏可见，收益集中于移动端长内容流；验证受阻于移动端滚动容器归属（window vs section）与 dev 模式竞态，且 preview 构建曾出现一次性 React #185。基于当时数据判断投入产出不足，回滚；如重试建议用"点击启用 3D"的确定性手势方案（R2 原建议），并先解决移动端滚动模型测试。
+- **主包瘦身 887→423 kB**（-52%）：lessonsEn 惰性注册表 + AssistantPanel（RAG/LLM 链）/ 课程主线 / 学习洞察懒加载；英文讲义 141 kB、助手链等全部按需 chunk。
+- **发布资产**：dist 图片 14.4 MB → 0.68 MB（-13.7 MB）。
+
+复测命令：
+
+```bash
+npm run build && npx vite preview --port 4173 --strictPort &
+PERF_BASE_URL=http://127.0.0.1:4173 npx playwright test tests/e2e/perf-prod.spec.ts
+```
