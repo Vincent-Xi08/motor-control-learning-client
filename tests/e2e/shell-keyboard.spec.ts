@@ -24,9 +24,8 @@ test('command palette opens, filters bilingually, jumps to module', async ({ pag
   await page.waitForTimeout(150);
   await expect(page.locator('[role="option"]').first()).toContainText('02');
 
-  // 清空后英文过滤：svpwm
-  await page.keyboard.press('Control+a');
-  await page.keyboard.type('svpwm');
+  // 清空后英文过滤：svpwm（fill 直接设值触发 React onChange，跨平台确定性）
+  await input.fill('svpwm');
   await page.waitForTimeout(150);
   await expect(page.locator('[role="option"]').first()).toContainText('SVPWM');
 
